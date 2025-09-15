@@ -536,7 +536,7 @@
                         </div>
                     </div>
                 </div>
-            `
+                  `
         };
 
         const cvDocument = document.getElementById('cv-document');
@@ -852,4 +852,172 @@
                         const label = el.textContent.split(':')[0];
                         value = `${label}: ${cvData[field] || ''}`;
                     }
- 
+                    el.textContent = value;
+                }
+            });
+
+            // Apply list fields (skills, languages, interests)
+            const lists = ['skills', 'languages', 'interests'];
+            lists.forEach(listName => {
+                const listEl = document.getElementById(`user-${listName}`);
+                if (listEl && cvData[listName]) {
+                    listEl.innerHTML = '';
+                    cvData[listName].forEach(item => {
+                        const li = document.createElement('li');
+                        li.textContent = item;
+                        li.classList.add('editable');
+                        listEl.appendChild(li);
+                    });
+                }
+            });
+              
+            // Apply experience data
+            const experienceDiv = document.getElementById('user-experience');
+            if (experienceDiv && cvData.experience) {
+                experienceDiv.innerHTML = '';
+                cvData.experience.forEach(exp => {
+                    const div = document.createElement('div');
+                    div.className = 'relative editable';
+                    div.innerHTML = `
+                        <h3 class="text-lg font-semibold editable" data-placeholder="مسمى وظيفي">${exp.title || ''}</h3>
+                        <p class="text-gray-600 italic text-sm editable" data-placeholder="الشركة، المدينة | التاريخ">${exp.company || ''} | ${exp.date || ''}</p>
+                        <p class="text-sm text-gray-700 mt-2 editable" data-placeholder="وصف المهام والمسؤوليات">${exp.description || ''}</p>
+                    `;
+                    experienceDiv.appendChild(div);
+                });
+            }
+
+            // Apply education data
+            const educationDiv = document.getElementById('user-education');
+            if (educationDiv && cvData.education) {
+                educationDiv.innerHTML = '';
+                cvData.education.forEach(edu => {
+                    const div = document.createElement('div');
+                    div.className = 'relative editable';
+                    div.innerHTML = `
+                        <h3 class="text-lg font-semibold editable" data-placeholder="الدرجة العلمية">${edu.degree || ''}</h3>
+                        <p class="text-gray-600 italic text-sm editable" data-placeholder="الجامعة، المدينة | التاريخ">${edu.university || ''} | ${edu.date || ''}</p>
+                        <p class="text-sm text-gray-700 mt-2 editable" data-placeholder="الشهادات والإنجازات">${edu.description || ''}</p>
+                    `;
+                    educationDiv.appendChild(div);
+                });
+            }
+
+            addEventListeners(); // Re-attach event listeners to new elements
+        }
+
+        // Add a new section logic
+        addSectionButton.addEventListener('click', () => {
+            addSectionModal.style.display = 'flex';
+        });
+
+        cancelAddSectionButton.addEventListener('click', () => {
+            addSectionModal.style.display = 'none';
+            document.getElementById('new-section-title').value = '';
+            document.getElementById('new-section-content').value = '';
+        });
+
+        confirmAddSectionButton.addEventListener('click', () => {
+            const title = document.getElementById('new-section-title').value;
+            const content = document.getElementById('new-section-content').value;
+            const customSectionsContainer = document.getElementById('custom-sections-container');
+            
+            if (!title || !content) {
+                customAlert('يرجى إدخال عنوان ومحتوى للقسم.');
+                return;
+            }
+
+            const newSection = document.createElement('div');
+            newSection.className = 'space-y-4';
+            newSection.innerHTML = `
+                <div>
+                    <h2 class="text-2xl font-bold border-b-2 border-gray-300 pb-2 mb-4 editable" data-placeholder="عنوان القسم">${title}</h2>
+                    <p class="text-gray-700 leading-relaxed text-sm editable" data-placeholder="محتوى القسم">
+                        ${content}
+                    </p>
+                </div>
+            `;
+            customSectionsContainer.appendChild(newSection);
+            addEventListeners(); // Re-attach listeners for the new section
+            addSectionModal.style.display = 'none';
+            document.getElementById('new-section-title').value = '';
+            document.getElementById('new-section-content').value = '';
+        });
+
+        // Toggle panel for mobile
+        if (isMobile) {
+            controlPanel.classList.add('hidden', 'flex-col');
+            togglePanelButton.addEventListener('click', () => {
+                controlPanel.classList.toggle('hidden');
+                controlPanel.classList.toggle('flex');
+            });
+        }
+        
+        // AI Template Generation
+        generateTemplateButton.addEventListener('click', async () => {
+            const userDescription = aiTemplateInput.value;
+            if (!userDescription.trim()) {
+                customAlert('يرجى كتابة وصف للقالب الذي تريده.');
+                return;
+            }
+
+            generateTemplateText.classList.add('hidden');
+            loadingTemplateSpinner.classList.remove('hidden');
+
+            const prompt = `
+            بناءً على الوصف التالي، قم بإنشاء قالب HTML جديد لسيرة ذاتية باستخدام Tailwind CSS. يجب أن يتضمن القالب العناصر التالية مع معرفات (IDs) محددة لكل منها:
+            - اسم المستخدم (user-name)
+            - المسمى الوظيفي (user-title)
+            - نبذة شخصية (user-profile)
+              - صورة شخصية (profile-image)
+            - معلومات الاتصال (user-phone, user-email, user-location, user-dob)
+            - أقسام للخبرة (user-experience), التعليم (user-education), المهارات (user-skills), اللغات (user-languages), والاهتمامات (user-interests).
+            - يجب أن تكون جميع حقول النص قابلة للتعديل باستخدام الفئة 'editable' وسم 'data-placeholder'.
+            - يجب أن يكون القالب كاملاً، باستخدام فئات Tailwind CSS فقط.
+            - الوصف: "${userDescription}"
+            - يجب أن يكون مظهر القالب احترافيًا وجذابًا ويتناسب مع الوصف. التزم بإنشاء قالب واحد فقط.
+            `;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                const newTemplateHtml = result.candidates[0].content.parts[0].text;
+                
+                customTemplateCount++;
+                const newTemplateName = `ai-template-${customTemplateCount}`;
+                templates[newTemplateName] = newTemplateHtml;
+                
+                const newButton = document.createElement('button');
+                newButton.className = 'template-button bg-green-500 hover:bg-green-700 text-white py-1 px-2 rounded-lg text-sm transition-transform transform hover:scale-105';
+                newButton.textContent = `قالب AI ${customTemplateCount}`;
+                newButton.dataset.template = newTemplateName;
+                document.getElementById('template-buttons-container').appendChild(newButton);
+                
+                addEventListenersForTemplates(); // Re-attach listeners for new button
+                renderTemplate(newTemplateName); // Switch to the new template
+                customAlert('تم توليد القالب بنجاح!');
+
+            } catch (error) {
+                console.error('AI template generation failed:', error);
+                customAlert('فشل في توليد القالب. قد يكون الوصف غير واضح.');
+            } finally {
+                generateTemplateText.classList.remove('hidden');
+                loadingTemplateSpinner.classList.add('hidden');
+            }
+        });
+
+    </script>
+</body>
+</html>
